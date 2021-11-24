@@ -1,4 +1,4 @@
-#Task 2 Taller R
+#Task 3 Taller R
 #Rafael Otero 201821640
 #Maria Paula Alvarez 201820569
 #Version de R: R version 4.1.0 (2021-05-18) ,Platform: x86_64-apple-darwin17.0 (64-bit), Running under: macOS Big Sur 11.5.2
@@ -113,8 +113,6 @@ logit_marg %>% tidy(conf.int = TRUE)
 probit_marg = margins(probit)
 probit_marg %>% tidy(conf.int = TRUE)
 
-
-
 logit_marg=logit_marg%>%subset(select=c(vector))
 probit_marg=probit_marg%>%subset(select=c(vector))
 #Lo anterior toca hacerlo porque la variable _weigths tiene puros N.A y modelplot no deja grafica
@@ -132,4 +130,42 @@ graph6#Ver grafica
 #Guardamos
 ggsave(plot=graph5, file = "views/ejemplo5.jpeg")
 ggsave(plot=graph6, file = "views/ejemplo6.jpeg")
+
+#Punto 3
+rm(list = ls()) # limpia el entorno de R
+require(pacman)
+p_load(tidyverse,data.table,plyr,XML,rvest,xml2) # cargar y/o instalar paquetes a usar
+
+#Punto 3.1
+browseURL(url = "https://es.wikipedia.org/wiki/Departamentos_de_Colombia",browser = getOption('browser'))# Ver pagina
+url="https://es.wikipedia.org/wiki/Departamentos_de_Colombia"#Especificamos la url
+info_html=read_html(url)
+class(info_html)# Vemos el tipo de archivo que es el HTLM
+
+#Punto 3.2
+info_html %>% html_nodes(xpath = '//*[@id="firstHeading"]/div/p[1]')#armamos codigo
+info_html %>% html_nodes(xpath = '//*[@id="firstHeading"]')%>% class()#vemos la clase del elemento
+info_html %>% html_nodes(xpath = '//*[@id="firstHeading"]')%>%html_text()#armamos codigo para ver texto
+Texto_titulo=info_html %>% html_nodes(xpath = '//*[@id="firstHeading"]')%>%html_text()#generamos elemento
+
+#Punto 3.3
+tablas= info_html %>% html_nodes('table') #extraemos todos los objetos de tipo table del elemento info_html
+tablas# vemos el objeto y encontramos que tiene 5 elementos
+
+tablas[1] %>% html_table(header = T,fill=T)
+tablas[2] %>% html_table(header = T,fill=T) 
+tablas[3] %>% html_table(header = T,fill=T) 
+tablas[4] %>% html_table(header = T,fill=T)
+
+cat("Lo que se hizo anteriormente fue ir insoeccionando en orden los elementos de tablas con el fin de determinar cual elemento corresponde a la tabla de los departamentos. Se encontro que es el elemtno 4")
+
+tabla_departamentos= tablas[4] %>% html_table(header = T,fill=T)  %>% as.data.frame() # Genero el data.frame de la tabla de los departamentos de colombia
+
+#Otra forma de hacerlo
+parse = read_html(url) %>% htmlParse()
+tablas_2 = parse %>% readHTMLTable(header = T)
+tabla_departamentos_2=tablas_2[[4]]
+
+# Se hace con el metodo de parse que nos deja archivos 'HTMLInternalDocument'
+
 
