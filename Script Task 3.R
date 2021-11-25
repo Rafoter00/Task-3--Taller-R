@@ -11,7 +11,7 @@ p_load(dplyr,data.table)
 print
 
 #Pregunta 1
-p_load(tidyverse,viridis,sf,leaflet,raster,maps) # llamar y/o instalar librerias
+p_load(tidyverse,viridis,sf,leaflet,raster,maps,skimr,ggsn) # llamar y/o instalar librerias
 Sys.setlocale("LC_CTYPE", "en_US.UTF-8") # Encoding UTF-8
 
 #Punto 1.1.1 
@@ -26,9 +26,97 @@ c_medico= subset(puntos,CSIMBOL == "021001"|CSIMBOL == "021002"|CSIMBOL == "0210
 #Punto 1.1.3
 c_poblado=read_rds("task_3 /data/input/c poblado (2017).rds")# Importo objecto c_poblado
 c_poblado=subset(c_poblado,cod_dane>=54001 & cod_dane<55000)#Dejo las observaciones con cod_dane>= 54001 cod_dane<55000
-depto=read_rds("task_3 /data/input/dp deptos (2017).rds")
-depto=subset(depto,name_dpto="SUCRE")
+depto=read_rds("task_3 /data/input/dp deptos (2017).rds")#Importamos objeto depto
+depto=subset(depto,name_dpto=="NORTE DE SANTANDER")#Dejamos la informacion para norte de Santander
+mapmuse = readRDS("task_3 /data/input/victimas_map-muse.rds") # Importamos mapmuse
 
+#Punto 1.2
+skim(via)
+skim(puntos)
+skim(c_medico)
+skim(c_poblado)
+skim(depto)
+skim(mapmuse)
+
+#La funcion skim nos permite estudiar cada una de las bases de datos que tenemos cargadas
+
+mapmuse$genero%>%table() # Discriminamos los datos de accidentes por genero
+mapmuse$tipo_accidente%>%table() #Discriminamos los daots de accidentes por tipo de accidente
+c_medico$CTEXT%>%table() #Vemos los distintos centros medicos
+table(mapmuse$actividad,mapmuse$estado)#Nos permite ver el estado de las victimas segun su actividad
+
+#Punto1.3.1
+c_medico%>% crs() #crs para c_medico
+c_medico%>%st_crs()#st_crs para c_medico
+c_medico%>%st_bbox()#st_bbox para c_medico
+
+c_poblado%>% crs() #crs para c_poblado
+c_poblado%>%st_crs()#st_crs para c_poblado
+c_poblado%>%st_bbox()#st_bbox para c_poblado
+
+depto%>% crs() #crs para depto
+depto%>%st_crs()#st_crs para depto
+depto%>%st_bbox()#st_bbox para depto
+
+mapmuse%>% crs() #crs para mapmuse
+mapmuse%>%st_crs()#st_crs para mapmuse
+mapmuse%>%st_bbox()#st_bbox para mapmuse
+
+puntos%>% crs() #crs para puntos
+puntos%>%st_crs()#st_crs para puntos
+puntos%>%st_bbox()#st_bbox para puntos
+
+via%>% crs() #crs para via
+via%>%st_crs()#st_crs para via
+via%>%st_bbox()#st_bbox para via
+
+#Punto 1.3.2
+c_medico=st_transform(c_medico,"+proj=utm +zone=19 +datum=WGS84 +units=m +no_defs")
+c_poblado=c_poblado %>% st_transform("+proj=utm +zone=19 +datum=WGS84 +units=m +no_defs")
+depto=depto %>% st_transform("+proj=utm +zone=19 +datum=WGS84 +units=m +no_defs")
+mapmuse=mapmuse %>% st_transform("+proj=utm +zone=19 +datum=WGS84 +units=m +no_defs")
+puntos=puntos %>% st_transform("+proj=utm +zone=19 +datum=WGS84 +units=m +no_defs")
+via=via %>% st_transform("+proj=utm +zone=19 +datum=WGS84 +units=m +no_defs")
+
+#Con lo anterior, se reproyecta el CRS de todos los objetos del punto 1.1
+
+#Punto 1.4.1
+mapmuse=subset(mapmuse,cod_mpio>=54001 & cod_mpio<55000)#Dejo los codigos de municipio que dejamos en c_poblados
+mapmuse=mapmuse[depto,]#Se dejan datos de geometrias compartidos con el departamento
+mapmuse_NS=st_crop(mapmuse,depto)#Hacemos el clip para dejar los puntos del mapmuse que estan en Santander
+
+#Punto 1.4.2
+Arboledo=c_poblado%>%subset(codmpio==54051)#Se coge la informacion de Arboledo de la base de datos c_poblado. Sabemos el codigo por consulta en la WEB
+via_Arboledo=st_crop(via,Arboledo)#Hacemos un clip de la geometria de Arboledo sobre la la informacion de las vias
+via_Arboledo=via_Arboledo%>%mutate(largo_de_via="")# Genero variable del largo de la via
+via_Arboledo$largo_de_via=st_length(via_Arboledo)
+
+#Punto 1.5.1
+puntos_NS=st_crop(puntos,depto)#Dejamos los puntos que estan bajo la geometria de Norte de Santander
+cat("Considerando que ya se habia subseteado por cod_dane, no deberia cambiar el numero de observaciones. No obstante lo hacemos para asegurarnos")
+leaflet() %>% addTiles() %>% addCircleMarkers(data = puntos_NS %>% st_transform(.,"+proj=longlat +datum=WGS84 +units=m +no_defs"))#Aplicamos la funcion leaflet
+
+#Punto 1.5.2
+
+c_poblado=c_poblado%>%mutate(centro="Poblado")
+c_medico=c_medico%>%mutate(centro="Medico")
+
+cat("Generar las variables de centro y pegarlas en los diagramas es necesarios con el fin de incluir una variable igual en los aes y que salga la leyenda")
+
+P_H=ggplot() + 
+  geom_sf(data = depto,color="black" , fill = "grey") +
+  geom_sf(data=c_medico,aes(color=centro))+
+  geom_sf(data=c_poblado,aes(color=centro))+
+  ggtitle("Centros Poblados y Medicos","en Norte de Santander")+
+  ggsn::north(data = depto,location="topright",symbol = 1)+
+  xlab("Longitud") + ylab("Latitud")+
+  ggsn::scalebar(data = depto,dist = 40,dist_unit = "km",transform = T, model = "WGS84",location = "bottomleft")+
+  theme_void()
+
+
+ggsave(plot=P_H, file = "views/Mapacentrospobladosyhostimatels.pdf",)
+
+  
 
 #Pregunta 2
 rm(list = ls()) # limpia el entorno de R
